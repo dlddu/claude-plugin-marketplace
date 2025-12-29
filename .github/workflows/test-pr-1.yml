@@ -1,0 +1,20 @@
+name: Test PR Workflow 1
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  pr-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PR validation
+        run: |
+          echo "Running PR validation workflow 1..."
+          sleep 4
+          echo "PR validation completed!"
