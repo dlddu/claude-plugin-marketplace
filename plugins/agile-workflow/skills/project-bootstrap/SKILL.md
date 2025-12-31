@@ -225,6 +225,53 @@ jobs:
    - GitHub Actions 실행 확인
    - 모든 Job이 성공하는지 확인
 
+3. **check-ci.sh 스크립트를 사용한 CI 결과 확인**
+
+   이 스킬에는 CI 상태를 자동으로 확인하는 스크립트가 포함되어 있습니다.
+
+   **스크립트 위치**: `skills/project-bootstrap/scripts/check-ci.sh`
+
+   **사용 방법**:
+   ```bash
+   # 스크립트 실행 (푸시 후)
+   ./scripts/check-ci.sh
+   ```
+
+   **스크립트 기능**:
+   - 현재 커밋에 대한 모든 워크플로우 상태 조회
+   - 모든 워크플로우가 완료될 때까지 대기 (최대 10분)
+   - 실패한 워크플로우의 상세 정보 (jobs, steps) 출력
+   - 성공/실패 결과 반환
+
+   **필요 환경**:
+   - `GITHUB_TOKEN` 또는 `GH_TOKEN` 환경 변수 설정
+   - GitHub CLI (자동 설치됨)
+
+   **출력 예시**:
+   ```
+   [INFO] Checking CI status...
+   [INFO] GitHub repository: owner/repo
+   [INFO] Branch: main
+   [INFO] Commit SHA: abc1234
+   [INFO] Found 2 workflow(s) for commit abc1234
+   [INFO] Workflows:
+     - CI Pipeline (#12345) [in_progress]
+     - Lint (#12346) [completed]
+   [INFO] Progress: 1 completed, 1 pending (elapsed: 30s)
+   [INFO] All workflows completed successfully!
+   ```
+
+   **CI 실패 시**:
+   ```
+   [ERROR] One or more workflows failed!
+   [ERROR] Failed workflow: CI Pipeline (#12345)
+   ━━━ Job: build [❌ failure] ━━━
+     ✅ Checkout code
+     ✅ Setup Node.js
+     ❌ Run tests
+   [ERROR] Full logs: https://github.com/owner/repo/actions/runs/12345
+   ```
+
 ### Phase 6: 추적성 매트릭스 업데이트
 
 **파일 위치**: `docs/traceability-matrix.md`

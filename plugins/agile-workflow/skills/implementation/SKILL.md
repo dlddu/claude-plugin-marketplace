@@ -155,13 +155,52 @@ git push origin {브랜치명}
 
 #### CI 결과 확인 방법
 
+**check-ci.sh 스크립트 사용 (권장)**:
+
+이 스킬에는 CI 상태를 자동으로 확인하는 스크립트가 포함되어 있습니다.
+
+**스크립트 위치**: `skills/implementation/scripts/check-ci.sh`
+
 ```bash
-# GitHub CLI를 사용한 확인
+# 스크립트 실행 (푸시 후)
+./scripts/check-ci.sh
+```
+
+**스크립트 기능**:
+- 현재 커밋에 대한 모든 워크플로우 상태 조회
+- 모든 워크플로우가 완료될 때까지 대기 (최대 10분)
+- 실패한 워크플로우의 상세 정보 (jobs, steps) 출력
+- 성공/실패 결과 반환
+
+**필요 환경**:
+- `GITHUB_TOKEN` 또는 `GH_TOKEN` 환경 변수 설정
+- GitHub CLI (자동 설치됨)
+
+**출력 예시 (성공)**:
+```
+[INFO] Checking CI status...
+[INFO] GitHub repository: owner/repo
+[INFO] Commit SHA: abc1234
+[INFO] Found 2 workflow(s) for commit abc1234
+[INFO] Progress: 2 completed, 0 pending (elapsed: 60s)
+[INFO] All workflows completed successfully!
+```
+
+**출력 예시 (실패)**:
+```
+[ERROR] One or more workflows failed!
+[ERROR] Failed workflow: CI Pipeline (#12345)
+━━━ Job: test [❌ failure] ━━━
+  ✅ Checkout code
+  ✅ Install dependencies
+  ❌ Run unit tests
+[ERROR] Full logs: https://github.com/owner/repo/actions/runs/12345
+```
+
+**대안: GitHub CLI 직접 사용**:
+```bash
 gh run list --limit 1
 gh run view {run-id}
-
-# 또는 check-ci.sh 스크립트 사용 (있는 경우)
-./scripts/check-ci.sh
 ```
 
 #### CI 결과에 따른 처리
