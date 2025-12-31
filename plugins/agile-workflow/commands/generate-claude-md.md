@@ -98,18 +98,146 @@ gh run list --limit 5
 
 ### 8. CI 검증 스크립트
 
-CI 통과 여부 확인 시 `check-ci.sh` 스크립트를 사용합니다:
+CI 통과 여부 확인 시 아래 스크립트를 `scripts/check-ci.sh`로 저장하여 사용합니다:
 
 ```bash
-# 스크립트 실행
-./scripts/check-ci.sh
+#!/bin/bash
+# CI 상태 확인 스크립트
+
+set -e
+
+MAX_WAIT_TIME=600  # 최대 10분 대기
+CHECK_INTERVAL=30  # 30초 간격으로 확인
+
+# 색상 정의
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+log_info() { echo -e "${GREEN}[INFO]${NC} $1" >&2; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1" >&2; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+
+# 저장소 정보 가져오기
+get_repo_info() {
+    if [ -n "$GITHUB_REPOSITORY" ]; then
+        echo "$GITHUB_REPOSITORY"
+        return 0
+    fi
+    local remote_url=$(git remote get-url origin 2>/dev/null)
+    if [[ "$remote_url" =~ github\.com[:/]([^/]+)/([^/.]+) ]]; then
+        echo "${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+        return 0
+    fi
+    if [[ "$remote_url" =~ /git/([^/]+)/([^/.]+) ]]; then
+        echo "${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+        return 0
+    fi
+    return 1
+}
+
+# gh CLI 설치
+install_gh_cli() {
+    if command -v gh &> /dev/null; then
+        log_info "GitHub CLI already installed"
+        return 0
+    fi
+    log_info "Installing GitHub CLI..."
+    local VERSION="2.63.2"
+    local ARCH=$(uname -m)
+    local OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+    case "$ARCH" in
+        x86_64) ARCH="amd64" ;;
+        aarch64|arm64) ARCH="arm64" ;;
+    esac
+    local URL="https://github.com/cli/cli/releases/download/v${VERSION}/gh_${VERSION}_${OS}_${ARCH}.tar.gz"
+    local TMP_DIR=$(mktemp -d)
+    curl -sL "$URL" | tar xz -C "$TMP_DIR"
+    sudo mv "$TMP_DIR/gh_${VERSION}_${OS}_${ARCH}/bin/gh" /usr/local/bin/
+    rm -rf "$TMP_DIR"
+}
+
+# gh CLI 인증
+setup_gh_auth() {
+    if gh auth status &> /dev/null; then return 0; fi
+    if [ -n "$GITHUB_TOKEN" ]; then
+        echo "$GITHUB_TOKEN" | gh auth login --with-token
+        return 0
+    fi
+    if [ -n "$GH_TOKEN" ]; then return 0; fi
+    log_error "No authentication token found. Set GITHUB_TOKEN or GH_TOKEN."
+    exit 1
+}
+
+# 모든 워크플로우 완료 대기
+wait_for_all_workflows() {
+    local repo=$1 commit_sha=$2 elapsed=0
+    local token="${GITHUB_TOKEN:-$GH_TOKEN}"
+
+    log_info "Waiting for all workflows for commit $commit_sha..."
+
+    while [ $elapsed -lt $MAX_WAIT_TIME ]; do
+        local runs_response=$(curl -s -H "Authorization: token $token" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${repo}/actions/runs?head_sha=${commit_sha}&per_page=100")
+
+        local total_count=$(echo "$runs_response" | jq -r '.total_count')
+        if [ "$total_count" = "0" ] || [ "$total_count" = "null" ]; then
+            log_warn "No workflows found yet... (elapsed: ${elapsed}s)"
+            sleep $CHECK_INTERVAL
+            elapsed=$((elapsed + CHECK_INTERVAL))
+            continue
+        fi
+
+        local all_completed=true any_failed=false
+        while IFS= read -r run; do
+            local status=$(echo "$run" | jq -r '.status')
+            local conclusion=$(echo "$run" | jq -r '.conclusion')
+            [ "$status" != "completed" ] && all_completed=false
+            [ "$conclusion" = "failure" ] && any_failed=true
+        done < <(echo "$runs_response" | jq -c '.workflow_runs[]')
+
+        if [ "$all_completed" = true ]; then
+            [ "$any_failed" = true ] && { echo "failure"; return 1; }
+            echo "success"; return 0
+        fi
+
+        sleep $CHECK_INTERVAL
+        elapsed=$((elapsed + CHECK_INTERVAL))
+    done
+    echo "timeout"; return 2
+}
+
+# 메인
+main() {
+    local repo=$(get_repo_info)
+    local commit_sha=$(git rev-parse HEAD)
+
+    [ -z "$repo" ] && { log_error "Could not determine repository"; exit 1; }
+
+    install_gh_cli
+    setup_gh_auth
+
+    log_info "Repository: $repo, Commit: $commit_sha"
+    sleep 10  # 워크플로우 시작 대기
+
+    local result=$(wait_for_all_workflows "$repo" "$commit_sha")
+    case "$result" in
+        "success") log_info "✅ All workflows passed!"; exit 0 ;;
+        "failure") log_error "❌ One or more workflows failed!"; exit 1 ;;
+        "timeout") log_error "⏰ Timeout"; exit 2 ;;
+    esac
+}
+
+main "$@"
 ```
 
-**스크립트 기능:**
-- GitHub CLI 자동 설치 및 인증
-- 현재 커밋의 모든 워크플로우 모니터링
-- 워크플로우 완료까지 대기 (최대 10분)
-- 실패 시 상세 로그 출력
+**사용법:**
+```bash
+chmod +x scripts/check-ci.sh
+./scripts/check-ci.sh
+```
 
 **환경 변수 설정:**
 ```bash
