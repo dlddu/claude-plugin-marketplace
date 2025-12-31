@@ -201,8 +201,47 @@ jobs:
 
 ## CI 검증
 
-GitHub Actions 워크플로우가 성공적으로 실행되었는지 확인합니다:
+GitHub Actions 워크플로우가 성공적으로 실행되었는지 확인합니다.
 
+### CI 검증 스크립트 사용
+
+**CI 검증은 `scripts/check-ci.sh` 스크립트를 사용합니다:**
+
+```bash
+# CI 상태 확인 스크립트 실행
+./scripts/check-ci.sh
+```
+
+### 스크립트 위치
+```
+skills/project-bootstrap/scripts/check-ci.sh
+```
+
+### 스크립트 기능
+- **자동 gh CLI 설치**: GitHub CLI가 없으면 자동 설치
+- **인증 설정**: GITHUB_TOKEN 또는 GH_TOKEN 환경변수 사용
+- **모든 워크플로우 모니터링**: 현재 커밋의 모든 워크플로우 추적
+- **상세 로그 출력**: 실패 시 jobs 및 steps 정보 표시
+- **타임아웃 처리**: 최대 10분 대기
+
+### 환경 변수 설정
+```bash
+# 필수: GitHub 인증 토큰 (둘 중 하나)
+export GITHUB_TOKEN="your-token"
+export GH_TOKEN="your-token"
+
+# 선택: 저장소 정보 (자동 감지되지 않는 경우)
+export GITHUB_REPOSITORY="owner/repo"
+```
+
+### 종료 코드
+| 코드 | 의미 |
+|------|------|
+| 0 | 모든 워크플로우 성공 |
+| 1 | 하나 이상의 워크플로우 실패 |
+| 2 | 타임아웃 |
+
+### 수동 확인 (필요 시)
 ```bash
 # GitHub CLI를 사용한 워크플로우 상태 확인
 gh run list --limit 5
@@ -221,7 +260,13 @@ Claude:
 4. GitHub Actions 워크플로우 생성 중...
 5. Hello World & Health Check 구현 중...
 6. 테스트 작성 및 실행 중...
-7. 추적성 매트릭스 업데이트 중...
+7. 커밋 및 푸시 중...
+8. CI 검증 중...
+   - ./scripts/check-ci.sh 실행 중...
+   - Found 1 workflow(s) for commit abc1234
+   - Progress: 1 completed, 0 pending
+   - ✅ All workflows completed successfully!
+9. 추적성 매트릭스 업데이트 중...
 
 부트스트랩 완료! CI 파이프라인이 성공적으로 실행되었습니다.
 ```

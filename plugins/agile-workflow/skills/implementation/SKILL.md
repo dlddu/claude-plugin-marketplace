@@ -286,7 +286,7 @@ CI 검증은 `scripts/check-ci.sh` 스크립트를 사용합니다.
 
 ### 스크립트 위치
 ```
-plugins/agile-workflow/scripts/check-ci.sh
+skills/implementation/scripts/check-ci.sh
 ```
 
 ### 사용법
