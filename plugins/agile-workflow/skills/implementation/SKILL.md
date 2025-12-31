@@ -152,6 +152,27 @@ git push origin [branch]
 
 #### 5.2 GitHub Actions 결과 확인
 
+**CI 검증 스크립트를 사용하여 확인합니다:**
+
+```bash
+# CI 상태 확인 스크립트 실행
+./scripts/check-ci.sh
+```
+
+스크립트는 다음 작업을 자동으로 수행합니다:
+- GitHub CLI 설치 및 인증 설정
+- 현재 커밋에 대한 모든 워크플로우 조회
+- 워크플로우 완료까지 대기 (최대 10분)
+- 실패 시 상세 로그 출력
+
+**환경 변수 설정 필요:**
+```bash
+export GITHUB_TOKEN="your-token"
+# 또는
+export GH_TOKEN="your-token"
+```
+
+**수동 확인이 필요한 경우:**
 ```bash
 # 워크플로우 실행 상태 확인
 gh run list --limit 5
@@ -261,38 +282,41 @@ Phase 6으로           실패 분석
 
 ## CI 검증 스크립트
 
-GitHub Actions 결과 확인을 위한 스크립트:
+CI 검증은 `scripts/check-ci.sh` 스크립트를 사용합니다.
 
+### 스크립트 위치
+```
+plugins/agile-workflow/scripts/check-ci.sh
+```
+
+### 사용법
 ```bash
-#!/bin/bash
-# CI 상태 확인 스크립트
+# 스크립트 실행
+./scripts/check-ci.sh
+```
 
-# 최근 커밋의 워크플로우 상태 확인
-COMMIT_SHA=$(git rev-parse HEAD)
-echo "Checking CI status for commit: $COMMIT_SHA"
+### 스크립트 기능
+- **자동 gh CLI 설치**: GitHub CLI가 없으면 자동 설치
+- **인증 설정**: GITHUB_TOKEN 또는 GH_TOKEN 환경변수 사용
+- **모든 워크플로우 모니터링**: 현재 커밋의 모든 워크플로우 추적
+- **상세 로그 출력**: 실패 시 jobs 및 steps 정보 표시
+- **타임아웃 처리**: 최대 10분 대기
 
-# 워크플로우 완료 대기 (최대 10분)
-for i in {1..60}; do
-    STATUS=$(gh run list --commit $COMMIT_SHA --json status,conclusion -q '.[0]')
+### 종료 코드
+| 코드 | 의미 |
+|------|------|
+| 0 | 모든 워크플로우 성공 |
+| 1 | 하나 이상의 워크플로우 실패 |
+| 2 | 타임아웃 |
 
-    if [[ $(echo $STATUS | jq -r '.status') == "completed" ]]; then
-        CONCLUSION=$(echo $STATUS | jq -r '.conclusion')
-        if [[ $CONCLUSION == "success" ]]; then
-            echo "✅ CI passed!"
-            exit 0
-        else
-            echo "❌ CI failed: $CONCLUSION"
-            gh run view --commit $COMMIT_SHA --log-failed
-            exit 1
-        fi
-    fi
+### 환경 변수
+```bash
+# 필수: GitHub 인증 토큰 (둘 중 하나)
+export GITHUB_TOKEN="your-token"
+export GH_TOKEN="your-token"
 
-    echo "Waiting for CI... ($i/60)"
-    sleep 10
-done
-
-echo "⏰ CI timeout"
-exit 2
+# 선택: 저장소 정보 (자동 감지되지 않는 경우)
+export GITHUB_REPOSITORY="owner/repo"
 ```
 
 ## 사용 예시
@@ -320,8 +344,10 @@ Claude:
 
 [Phase 5] CI 검증...
 - 커밋 및 푸시 완료
-- GitHub Actions 실행 중...
-- ✅ CI 통과!
+- ./scripts/check-ci.sh 실행 중...
+- Found 2 workflow(s) for commit abc1234
+- Progress: 2 completed, 0 pending
+- ✅ All workflows completed successfully!
 
 [Phase 6] 추적성 업데이트...
 TASK-001 완료!
