@@ -1,0 +1,18 @@
+{
+  "name": "agile-workflow",
+  "description": "애자일 방법론, 명세 주도 개발(SDD), 테스트 주도 개발(TDD)을 통합한 개발 워크플로우 플러그인",
+  "version": "1.0.0",
+  "author": {
+    "name": "dlddu"
+  },
+  "repository": "https://github.com/dlddu/claude-plugin-marketplace",
+  "skills": [
+    "spec-writing",
+    "project-bootstrap",
+    "task-planning",
+    "implementation"
+  ],
+  "commands": [
+    "generate-claude-md"
+  ]
+}

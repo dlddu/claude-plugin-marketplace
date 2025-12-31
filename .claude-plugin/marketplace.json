@@ -10,6 +10,12 @@
       "source": "./plugins/sdd-workflow",
       "description": "SDD(Spec Driven Development) 자동화 워크플로우",
       "version": "1.0.0"
+    },
+    {
+      "name": "agile-workflow",
+      "source": "./plugins/agile-workflow",
+      "description": "애자일 방법론, 명세 주도 개발(SDD), 테스트 주도 개발(TDD)을 통합한 개발 워크플로우",
+      "version": "1.0.0"
     }
   ]
 }
